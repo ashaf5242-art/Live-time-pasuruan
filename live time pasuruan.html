@@ -1,0 +1,266 @@
+
+</html<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aplikasi Waktu, Cuaca & Sholat Pasuruan</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #4CAF50, #FFEB3B);
+        color: #222;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    header {
+        background: rgba(0, 0, 0, 0.4);
+        color: white;
+        padding: 10px;
+        text-align: center;
+    }
+    #time-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+    }
+    section {
+        padding: 15px;
+        margin: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+    th, td {
+        padding: 8px;
+        text-align: center;
+        border: 1px solid #ccc;
+    }
+    h2 { margin-top: 0; }
+    footer {
+        background: rgba(0,0,0,0.6);
+        color: yellow;
+        padding: 5px;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+    footer span {
+        display: inline-block;
+        animation: scrollText 12s linear infinite;
+    }
+    @keyframes scrollText {
+        from { transform: translateX(100%); }
+        to { transform: translateX(-100%); }
+    }
+    .toggle-container {
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Pasuruan Live Info</h1>
+    <div id="time-container">
+        <div>
+            <div id="time" style="font-size: 1.5em;"></div>
+            <div id="date"></div>
+        </div>
+        <canvas id="analogClock" width="100" height="100"></canvas>
+    </div>
+</header>
+
+<section>
+    <h2>Cuaca Sekarang</h2>
+    <div id="weather">Memuat...</div>
+</section>
+
+<section>
+    <h2>Cuaca Per Hari</h2>
+    <div id="daily-weather">Memuat...</div>
+</section>
+
+<section>
+    <h2>Cuaca Per Jam</h2>
+    <div id="hourly-weather">Memuat...</div>
+</section>
+
+<section>
+    <h2>Waktu Sholat</h2>
+    <div id="prayer-times">Memuat...</div>
+    <div id="countdown"></div>
+    <div class="toggle-container">
+        <label>
+            <input type="checkbox" id="alarmToggle" checked> Aktifkan Alarm Sholat
+        </label>
+    </div>
+</section>
+
+<audio id="adzan-audio" src="https://download.quranicaudio.com/quran/mahmood_khaleel_al-husaree/001.mp3"></audio>
+
+<footer>
+    <span>Dibuat oleh: Ustadz Johan Syafi'uddin</span>
+</footer>
+
+<script>
+// ================= JAM DIGITAL =================
+function updateTime() {
+    const now = new Date();
+    document.getElementById("time").textContent = now.toLocaleTimeString("id-ID");
+    document.getElementById("date").textContent = now.toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// ================= JAM ANALOG =================
+const canvas = document.getElementById("analogClock");
+const ctx = canvas.getContext("2d");
+function drawClock() {
+    const now = new Date();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.beginPath();
+    ctx.arc(50, 50, 48, 0, 2 * Math.PI);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#000";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let num = 1; num <= 12; num++) {
+        const ang = num * Math.PI / 6;
+        ctx.rotate(ang);
+        ctx.translate(0, -38);
+        ctx.rotate(-ang);
+        ctx.fillText(num.toString(), 50, 50);
+        ctx.rotate(ang);
+        ctx.translate(0, 38);
+        ctx.rotate(-ang);
+    }
+
+    const hour = now.getHours() % 12;
+    const minute = now.getMinutes();
+    const second = now.getSeconds();
+
+    // Hour hand
+    let hourAngle = ((Math.PI / 6) * hour) + ((Math.PI / 360) * minute);
+    drawHand(hourAngle, 20, 5);
+
+    // Minute hand
+    let minuteAngle = ((Math.PI / 30) * minute) + ((Math.PI / 1800) * second);
+    drawHand(minuteAngle, 30, 3);
+
+    // Second hand
+    let secondAngle = (Math.PI / 30) * second;
+    drawHand(secondAngle, 35, 1, "red");
+}
+function drawHand(pos, length, width, color = "#000") {
+    ctx.beginPath();
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = color;
+    ctx.moveTo(50, 50);
+    ctx.lineTo(50 + length * Math.sin(pos), 50 - length * Math.cos(pos));
+    ctx.stroke();
+}
+setInterval(drawClock, 1000);
+drawClock();
+
+// ================= ICON CUACA =================
+function weatherIcon(code) {
+    const map = {
+        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+        45: "🌫️", 48: "🌫️",
+        51: "🌦️", 61: "🌧️", 71: "❄️",
+        95: "⛈️", 99: "⛈️"
+    };
+    return map[code] || "❓";
+}
+
+// ================= CUACA =================
+async function getWeather() {
+    const res = await fetch("https://api.open-meteo.com/v1/forecast?latitude=-7.6449&longitude=112.9076&current_weather=true&daily=temperature_2m_max,temperature_2m_min,weathercode&hourly=temperature_2m,weathercode&timezone=Asia%2FJakarta");
+    const data = await res.json();
+
+    const w = data.current_weather;
+    document.getElementById("weather").innerHTML = `${weatherIcon(w.weathercode)} Suhu: ${w.temperature}°C<br>Angin: ${w.windspeed} km/jam`;
+
+    let dailyHTML = "<table><tr><th>Tanggal</th><th>Cuaca</th><th>Min</th><th>Max</th></tr>";
+    data.daily.time.forEach((date, i) => {
+        dailyHTML += `<tr><td>${date}</td><td>${weatherIcon(data.daily.weathercode[i])}</td><td>${data.daily.temperature_2m_min[i]}°C</td><td>${data.daily.temperature_2m_max[i]}°C</td></tr>`;
+    });
+    dailyHTML += "</table>";
+    document.getElementById("daily-weather").innerHTML = dailyHTML;
+
+    let hourlyHTML = "<table><tr><th>Jam</th><th>Cuaca</th><th>Suhu</th></tr>";
+    for (let i = 0; i < 24; i++) {
+        hourlyHTML += `<tr><td>${data.hourly.time[i].split("T")[1]}</td><td>${weatherIcon(data.hourly.weathercode[i])}</td><td>${data.hourly.temperature_2m[i]}°C</td></tr>`;
+    }
+    hourlyHTML += "</table>";
+    document.getElementById("hourly-weather").innerHTML = hourlyHTML;
+}
+getWeather();
+setInterval(getWeather, 900000);
+
+// ================= WAKTU SHOLAT =================
+let prayerTimes = {};
+async function getPrayerTimes() {
+    const res = await fetch("https://api.aladhan.com/v1/timingsByCity?city=Pasuruan&country=Indonesia&method=2");
+    const data = await res.json();
+    prayerTimes = data.data.timings;
+
+    let tableHTML = "<table><tr><th>Sholat</th><th>Waktu</th></tr>";
+    for (let key of ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"]) {
+        tableHTML += `<tr><td>${key}</td><td>${prayerTimes[key]}</td></tr>`;
+    }
+    tableHTML += "</table>";
+    document.getElementById("prayer-times").innerHTML = tableHTML;
+
+    startCountdown();
+}
+getPrayerTimes();
+setInterval(getPrayerTimes, 21600000);
+
+function startCountdown() {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const events = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+    let nextPrayer = null;
+    for (let e of events) {
+        const pt = new Date(`${today}T${prayerTimes[e]}:00+07:00`);
+        if (pt > now) { nextPrayer = { name: e, time: pt }; break; }
+    }
+    if (!nextPrayer) return;
+    function tick() {
+        const diff = nextPrayer.time - new Date();
+        if (diff <= 0) {
+            document.getElementById("countdown").textContent = `${nextPrayer.name} sekarang!`;
+            if (document.getElementById("alarmToggle").checked) {
+                document.getElementById("adzan-audio").play();
+            }
+            getPrayerTimes();
+        } else {
+            const h = String(Math.floor(diff / 3600000)).padStart(2, "0");
+            const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
+            const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
+            document.getElementById("countdown").textContent = `Menuju ${nextPrayer.name}: ${h}:${m}:${s}`;
+        }
+    }
+    setInterval(tick, 1000);
+}
+</script>
+</body>
+</html>
